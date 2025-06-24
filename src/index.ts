@@ -1,11 +1,16 @@
-import { serve } from '@hono/node-server'
-import { Hono } from 'hono'
+import {serve} from '@hono/node-server'
+import {Hono} from 'hono'
+
+import {route as market} from "./routes/market.js"
+import {route as items} from "./routes/items.js"
 
 const app = new Hono()
 
-app.get('/', (c) => {
-  return c.text('Hello Hono!')
-})
+
+app.route("/items", items)
+app.route("/market", market)
+
+
 
 serve({
   fetch: app.fetch,
