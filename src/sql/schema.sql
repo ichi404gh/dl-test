@@ -1,7 +1,7 @@
 create table public.users
 (
     id      serial primary key,
-    balance decimal(10, 2) default 0.0 not null
+    balance decimal(10, 2) default 0.0 not null CHECK (balance >= 0)
 );
 
 create table products

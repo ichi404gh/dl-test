@@ -19,43 +19,52 @@ route.post(
   async (c) => {
     const {userId, productId} = c.req.valid("json");
 
-    const user = await sql`
-        SELECT id
-        FROM users
-        WHERE id = ${userId}`;
+    const balance = await sql.begin(async sql => {
+      const user = await sql`
+          SELECT *
+          FROM users
+          WHERE id = ${userId}
+      `.then(rows => rows[0]);
 
-    if (user.length === 0) {
-      throw new HTTPException(404, {res: c.json({error: "User not found"})})
-    }
+      if (!user) {
+        throw new HTTPException(404, {res: c.json({error: "User not found"})})
+      }
 
-    const priceResult = await sql`
-        SELECT price
-        FROM products
-        WHERE id = ${productId}`;
+      const userBalance = Number.parseFloat(user.balance);
 
-    if (!priceResult.count) {
-      throw new HTTPException(404, {res: c.json({error: "Product not found"})});
-    }
+      const product = await sql`
+          SELECT price
+          FROM products
+          WHERE id = ${productId}
+      `.then(rows => rows[0]);
 
-    const price = priceResult[0].price;
-    const updateResult = await sql`
-        UPDATE users
-        SET balance = balance - ${price}
-        WHERE id = ${userId}
-          AND balance >= ${price}
-        RETURNING balance
-    `;
+      if (!product) {
+        throw new HTTPException(404, {res: c.json({error: "Product not found"})});
+      }
 
-    if (!updateResult.count) {
-      throw new HTTPException(400, {res: c.json({error: "Insufficient balance"})});
-    }
+      const price = Number.parseFloat(product.price);
 
-    await sql`
-        INSERT INTO purchases (user_id, product_id, price)
-        VALUES (${userId}, ${productId}, ${price})
-    `;
+      if(price > userBalance) {
+        throw new HTTPException(400, {res: c.json({error: "Insufficient balance"})});
+      }
 
-    return c.json(updateResult[0]);
+      const [{balance}] = await sql`
+          UPDATE users
+          SET balance = balance - ${product.price}
+          WHERE id = ${userId}
+          RETURNING balance
+      `.catch(err => {
+        throw new HTTPException(400, {res: c.json({error: "Insufficient balance"})});
+      });
 
+      await sql`
+          INSERT INTO purchases (user_id, product_id, price)
+          VALUES (${userId}, ${productId}, ${product.price})
+      `;
+
+      return balance;
+    });
+
+    return c.json({balance});
   });
 
