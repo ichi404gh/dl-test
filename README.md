@@ -17,10 +17,10 @@ npm run dev
 
 ```http request
 ###
-GET http://localhost:3000/items
+GET /items
 
 ###
-POST http://localhost:3000/market/buy
+POST /market/buy
 Content-Type: application/json
 
 { 
